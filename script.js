@@ -10,9 +10,26 @@ const apiKey = 'DEMO_KEY'
 const apiUrl = `https://api.nasa.gov/planetary/apod?api_key=${apiKey}&count=${count}`
 
 let resultsArray = []
+let favorites = {}
 
-const updateDOM = () => {
-    resultsArray.forEach((result) => {
+const showContent = (page) => {
+    window.scrollTo({
+        top:0,
+        behavior: 'auto'
+    })
+    if(page === 'results') {
+        resultsNav.classList.remove('hidden')
+        favoritesNav.classList.add('hidden')
+    } else {
+        resultsNav.classList.add('hidden')
+        favoritesNav.classList.remove('hidden')
+    }
+    loader.classList.add('hidden')
+}
+
+const createDOMNodes = (page) => {
+    const currentArray = (page === 'results') ? resultsArray : Object.values(favorites)
+    currentArray.forEach((result) => {
         // Card Container
         const card = document.createElement('div')
         card.classList.add('card')
@@ -37,7 +54,13 @@ const updateDOM = () => {
         // Save Text
         const saveText = document.createElement('p')
         saveText.classList.add('clickable')
-        saveText.textContent = 'Add To Favorites'
+        if (page === 'results') {
+            saveText.textContent = 'Add To Favorites'
+            saveText.setAttribute('onclick', `saveFavourite('${result.url}')`)
+        } else {
+            saveText.textContent = 'Remove Favorite'
+            saveText.setAttribute('onclick', `removeFavourite('${result.url}')`)
+        }
         // Card Text
         const cardText = document.createElement('p')
         cardText.textContent = result.explanation
@@ -53,27 +76,61 @@ const updateDOM = () => {
         copyright.textContent = copyrightResult
         // Append
         footer.append(date, copyright)
-        cardBody.append(cardTitle,saveText, cardText, footer)
+        cardBody.append(cardTitle, saveText, cardText, footer)
         link.appendChild(image)
         card.append(link, cardBody)
         imagesContainer.appendChild(card)
-        // console.log(card)
     })
+}
+
+const updateDOM = (page) => {
+    // Get Favorites from localStorage
+    if (localStorage.getItem('nasaFavorites')) {
+        favorites = JSON.parse(localStorage.getItem('nasaFavorites'))
+    }
+    imagesContainer.textContent = ''
+    createDOMNodes(page)
+    showContent(page)
 }
 
 // Get 10 Images from NASA API
 const getNasaPictures = async () => {
+    // Show Loader
+    loader.classList.remove('hidden')
     try {
         const response = await fetch(apiUrl)
         resultsArray = await response.json()
-        // console.log(resultsArray)
-        updateDOM()
+        updateDOM('results')
     } catch (error) {
         // Catch Error here
         console.log('something went wrong!!!', error)
     }
 }
 
+// Add Result to Favorites
+const saveFavourite = (itemUrl) => {
+    // Loop through Results Array to select Favorite
+    resultsArray.forEach((item) => {
+        if (item.url.includes(itemUrl) && !favorites[itemUrl]) {
+            favorites[itemUrl] = item
+            // Show Save Confirmation for 2 seconds
+            saveConfirmed.hidden = false
+            setTimeout(() => saveConfirmed.hidden = true, 2000)
+            // Set Favorites in localStorage
+            localStorage.setItem('nasaFavorites', JSON.stringify(favorites))
+        }
+    })
+}
+
+// Remove itemn from favorites
+const removeFavourite = (itemUrl) => {
+    if(favorites[itemUrl]) {
+        delete favorites[itemUrl]
+        // Set Favorites in localStorage
+        localStorage.setItem('nasaFavorites', JSON.stringify(favorites))
+        updateDOM('favorites')
+    }
+}
+
 // On Load
 getNasaPictures()
-// console.log(resultsNav, favoritesNav, imagesContainer, saveConfirmed, loader)
